@@ -6,7 +6,7 @@ require 'active_support/core_ext/string/inflections'
 module ERBLint
   module Linters
     # Checks for hardcoded strings. Useful if you want to ensure a string can be translated using i18n.
-    class HardCodedString < Linter
+    class Gettext < Linter
       include LinterRegistry
 
       ForbiddenCorrector = Class.new(StandardError)
@@ -27,8 +27,11 @@ module ERBLint
 
       def run(processed_source)
         require 'pry'
-        hardcoded_strings = processed_source.ast.descendants(:text).each_with_object([]) do |text_node, to_check|
-          next if non_text_tag?(processed_source, text_node)
+        binding.pry
+
+        hardcoded_strings = processed_source.ast.descendants(:erb).each_with_object([]) do |text_node, to_check|
+          # next if non_text_tag?(processed_source, text_node)
+          binding.pry
 
           offended_strings = text_node.to_a.select { |node| relevant_node(node) }
           offended_strings.each do |offended_string|
@@ -37,6 +40,20 @@ module ERBLint
             end
           end
         end
+        # hardcoded_strings = (
+        #   processed_source
+        #   .ast
+          
+        #   .flatten
+        #   .compact
+        #   .select {|node| relevant_node(node) }
+        # ).each_with_object([]) do |text_node, to_check|
+        #   # next if non_text_tag?(processed_source, text_node)
+
+        #   text_node.split("\n").each do |str|
+        #     to_check << [text_node, str] if check_string?(str)
+        #   end
+        # end
 
         hardcoded_strings.compact.each do |text_node, offended_str|
           range = find_range(text_node, offended_str)
@@ -73,8 +90,8 @@ module ERBLint
       private
 
       def check_string?(str)
-        string = str.gsub(/\s*/, '')
-        string.length > 1 && !BLACK_LISTED_TEXT.include?(string)
+        regex = /(_\('.*?'\))/
+        string.match(regex) && !BLACK_LISTED_TEXT.include?(string)
       end
 
       def load_corrector
@@ -85,21 +102,23 @@ module ERBLint
         corrector_name.safe_constantize
       end
 
-      def non_text_tag?(processed_source, text_node)
-        ast = processed_source.parser.ast.to_a
-        index = ast.find_index(text_node)
+      # def non_text_tag?(processed_source, text_node)
+      #   ast = processed_source.parser.ast.to_a
+      #   index = ast.find_index(text_node)
 
-        previous_node = ast[index - 1]
+      #   previous_node = ast[index - 1]
 
-        if previous_node.type == :tag
-          tag = BetterHtml::Tree::Tag.from_node(previous_node)
+      #   if previous_node.type == :tag
+      #     tag = BetterHtml::Tree::Tag.from_node(previous_node)
 
-          NON_TEXT_TAGS.include?(tag.name) && !tag.closing?
-        end
-      end
+      #     NON_TEXT_TAGS.include?(tag.name) && !tag.closing?
+      #   end
+      # end
 
       def relevant_node(inner_node)
-        if inner_node.is_a?(String) || inner_node.type == :text
+        require 'pry'
+        if inner_node.type == :code
+          binding.pry
           inner_node.strip.empty? ? false : inner_node
         else
           false

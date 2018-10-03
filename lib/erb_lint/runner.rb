@@ -12,6 +12,8 @@ module ERBLint
 
       LinterRegistry.load_custom_linters
       linter_classes = LinterRegistry.linters.select { |klass| @config.for_linter(klass).enabled? }
+      require 'pry'
+      binding.pry
       @linters = linter_classes.map do |linter_class|
         linter_class.new(@file_loader, @config.for_linter(linter_class))
       end
@@ -19,12 +21,16 @@ module ERBLint
     end
 
     def run(processed_source)
+      require 'pry'
+      binding.pry
       @linters
         .reject { |linter| linter.excludes_file?(processed_source.filename) }
         .each do |linter|
         linter.run(processed_source)
         @offenses.concat(linter.offenses)
       end
+      binding.pry
+      puts 'asdf'
     end
 
     def clear_offenses
